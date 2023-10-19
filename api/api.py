@@ -52,12 +52,18 @@ def show_free_tables():
         cur.close()
 
 @app.route('/tables/reserved', methods=['GET'])
-def api2():
+def viewReserved():
     cur = estConnection()
-    all_books = cur.execute('SELECT * FROM;').fetchall()
+    reservedTables = cur.execute('SELECT * FROM reservierungen;').fetchall()
+    return jsonify(reservedTables)
 
-    return jsonify(all_books)
+@app.route('/reserveTable', method=['POST'])
+def reserveTable():
+    cur = estConnection()
 
+@app.route('/cancleReserve', method=['PUT'])
+def reserveTable():
+    cur = estConnection()
 
 
 @app.errorhandler(404)
