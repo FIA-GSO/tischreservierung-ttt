@@ -14,24 +14,46 @@ def dict_factory(cursor, row):
 
 @app.route('/', methods=['GET'])
 def home():
-    return '''<h1>Distant Reading Archive</h1>
-<p>A prototype API for distant reading of science fiction novels.</p>'''
+    return '''<h1>Buchung für Tische im ___</h1>
+<p></p>'''
 
-#TODO payload checken, db aufrufen
-@app.route('/tables/free', methods=['GET'])
-def api_all():
+def estConnection():
     conn = sqlite3.connect('db/buchungssystem.sqlite')
     conn.row_factory = dict_factory
-    cur = conn.cursor()
-    all_entries = cur.execute('SELECT * FROM tische;').fetchall()
+    return conn.cursor()
 
-    return jsonify(all_entries)
+#TODO payload checken
+@app.route('/tables/free', methods=['GET'])
+def show_free_tables():
+    date = request.args.get('date')
+    
+    try:
+        cur = estConnection()
+        query = '''
+        SELECT t.tischnummer
+        FROM tische t
+        WHERE t.tischnummer NOT IN (
+            SELECT DISTINCT r.tischnummer
+            FROM reservierungen r
+            WHERE (
+                r.zeitpunkt >= ? 
+                AND r.zeitpunkt < DATETIME(?, '+30 minutes')
+            ) AND r.storniert = 'False'
+        );
+        '''
+        cur.execute(query, (date, date))
+        result = cur.fetchall()
+
+        return jsonify(result)
+
+    except Exception as e:
+        return str(e)
+    finally:
+        cur.close()
 
 @app.route('/tables/reserved', methods=['GET'])
 def api2():
-    conn = sqlite3.connect('db/buchungssystem.sqlite')
-    conn.row_factory = dict_factory
-    cur = conn.cursor()
+    cur = estConnection()
     all_books = cur.execute('SELECT * FROM;').fetchall()
 
     return jsonify(all_books)
