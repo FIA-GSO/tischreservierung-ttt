@@ -1,0 +1,17 @@
+@startuml reservations
+
+actor User
+participant Client
+participant Server
+database Database
+
+User -> Client: POST /reservations
+Client -> Server: HTTP Request
+Server -> Database: SQL Query (Check Table Availability)
+Database --> Server: Query Result
+Server -> Database: SQL Query (Insert Reservation)
+Database --> Server: Query Result
+Server --> Client: JSON Response
+Client --> User: JSON Response
+
+@enduml

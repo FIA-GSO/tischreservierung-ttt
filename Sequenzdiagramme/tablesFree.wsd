@@ -1,0 +1,15 @@
+@startuml tablesFree
+
+actor User
+participant Client
+participant Server
+database Database
+
+User -> Client: GET /tables/free
+Client -> Server: HTTP Request
+Server -> Database: SQL Query
+Database --> Server: Query Result
+Server --> Client: JSON Response
+Client --> User: JSON Response
+
+@enduml
