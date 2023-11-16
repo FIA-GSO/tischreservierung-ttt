@@ -1,7 +1,8 @@
-import flask
 from flask import request, jsonify
+import flask
+from datetime import datetime, timedelta
 import sqlite3
-import datetime
+import random
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -18,6 +19,24 @@ def establish_connection(needs_conn = False):
     conn = sqlite3.connect('db/buchungssystem.sqlite')
     conn.row_factory = dict_factory
     return conn.cursor()
+
+def zeit_aufrunden(datum_str):
+    try:
+        datum = datetime.strptime(datum_str, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        raise ValueError("Ungültiges Datumsformat. Erwartetes Format: 'YYYY-MM-DD HH:MM:SS'")
+
+    if datum.minute < 30:
+        aufgerundete_minuten = 30
+    elif datum.minute > 30:
+        aufgerundete_minuten = 0
+        datum += timedelta(hours=1)
+    else:
+        aufgerundete_minuten = datum.minute
+
+    aufgerundetes_datum = datetime(datum.year, datum.month, datum.day, datum.hour, aufgerundete_minuten)
+
+    return aufgerundetes_datum
 
 @app.route('/', methods=['GET'])
 def home():
@@ -87,32 +106,44 @@ def show_reserved_tables_today():
 def create_reservation():
     data = request.get_json()
     tischnummer = data.get('tischnummer')
-    zeitpunkt = data.get('zeitpunkt')
+    zeitpunkt = data['zeitpunkt']
     
     if not tischnummer or not zeitpunkt:
-        return jsonify({'error': 'Ungültige Anfrage'}), 400
+        return jsonify({'error': 'Ungültige Anfrage, fehlende Parameter'}), 400
+    if not isinstance(tischnummer, int) or not isinstance(zeitpunkt, str):
+        return jsonify({'error': 'Ungültige Datentypen für Parameter'}), 400
     
+    try:
+        zeitpunkt = zeit_aufrunden(zeitpunkt)
+    except Exception as e:
+        return str(e), 400
+
     try:
         conn = establish_connection(needs_conn = True)
         conn.row_factory = dict_factory
         cur = conn.cursor()
         
-        # Überprüfen, ob der ausgewählte Tisch zu diesem Zeitpunkt verfügbar ist
+        # Überprüfen, ob der ausgewählte Tisch zu diesem Zeitpunkt +- 30 min verfügbar ist
         availability_query = '''
-        SELECT COUNT(*) 
-        FROM reservierungen 
-        WHERE zeitpunkt = ? AND tischnummer = ? AND storniert = 'False'
+            SELECT COUNT(*) 
+            FROM reservierungen 
+            WHERE (
+                (zeitpunkt >= ? AND zeitpunkt <= datetime(?, '+30 minutes')) OR
+                (zeitpunkt >= datetime(?, '-30 minutes') AND zeitpunkt <= ?)
+            )
+            AND tischnummer = ? 
+            AND storniert = 'False'
         '''
         
         cur.execute(availability_query, (zeitpunkt, tischnummer))
-        is_table_available = cur.fetchone()[0]
+        result = cur.fetchone()
+        is_table_available = result['COUNT(*)']
         
         if is_table_available > 0:
             return jsonify({'error': 'Der ausgewählte Tisch ist nicht verfügbar'}), 400
         
-        pin = 1337
-        reservierungsnummer = 42
-        
+        pin = random.randint(1000, 9999)
+
         # Hinzufügen der Reservierung zur Datenbank
         insert_query = '''
         INSERT INTO reservierungen (zeitpunkt, tischnummer, pin, storniert)
@@ -121,11 +152,12 @@ def create_reservation():
         
         cur.execute(insert_query, (zeitpunkt, tischnummer, pin))
         conn.commit()
+        reservierungsnummer = cur.lastrowid
         
-        return jsonify({'reservierungsnummer': reservierungsnummer, 'pin': pin})
+        return jsonify({'reservierungsnummer': reservierungsnummer, 'pin': pin, 'Zeitpunkt': zeitpunkt, 'tischnummer': tischnummer}), 302
     
     except Exception as e:
-        return str(e)
+        return str(e), 400
     finally:
         cur.close()
         conn.close()
