@@ -1,17 +1,29 @@
 @startuml reservations
 
-actor User
-participant Client
-participant Server
-database Database
+sequenceDiagram
+  participant Client
+  participant API
+  participant DBMS
 
-User -> Client: POST /reservations
-Client -> Server: HTTP Request
-Server -> Database: SQL Query (Check Table Availability)
-Database --> Server: Query Result
-Server -> Database: SQL Query (Insert Reservation)
-Database --> Server: Query Result
-Server --> Client: JSON Response
-Client --> User: JSON Response
+  Client->>+API: POST /reservations(data)
+  activate API
+  API->>API: Parse JSON data
+  alt faulty params
+    API--)Client: Return error: POST /reservations(): Validation Error, HTTP 400
+  else
+  end
+  deactivate API
+  API->>+DBMS: checkIfFree(table, time)
+  DBMS--)-API: checkIfFree(-): boolean
+  activate API
+  alt table not available
+    API--)Client: Return error: POST /reservations(): Error: Table not available, HTTP 400
+  else
+  end
+  API->>-DBMS: cur.exe(reservation)
+  activate DBMS
+  DBMS--)API: cur.exe(): reservation
+  deactivate DBMS
+  API--)Client: POST /reservations():Status,Pin,ReservationId
 
 @enduml
