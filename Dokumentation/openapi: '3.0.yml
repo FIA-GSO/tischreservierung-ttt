@@ -52,6 +52,8 @@ paths:
               properties:
                 tischnummer:
                   type: integer
+                  minimum: 0
+                  maximum: 50
                 zeitpunkt:
                   type: string
                   format: date-time
@@ -75,6 +77,8 @@ paths:
           required: true
           schema:
             type: integer
+            minimum: 1000
+            maximum: 9999
         - name: pin
           in: query
           description: The PIN associated with the reservation.
