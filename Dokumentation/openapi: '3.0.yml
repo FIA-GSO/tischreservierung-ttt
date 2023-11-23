@@ -1,0 +1,94 @@
+openapi: '3.0.2'
+info:
+  title: Buchungssystem für den Italiener nebenan :)
+  version: '1.0'
+  license: 
+    name: My totally legit license
+    url: existingUrl.xyz/license/Buchungssysteme.html
+  description: 
+    This is a documentation site for the API of your local beloved pizza place!
+    Now you can reserve a Table for urself and cancle it if needed.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /tables:
+    get:
+      summary: Show Free Tables
+      description: Returns a list of free tables for a given date.
+      operationId: getTables
+      parameters:
+        - name: date
+          in: query
+          description: The date for which free tables should be retrieved.
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: A list of free table numbers.
+        '400':
+          description: Bad request. Missing or invalid parameters.
+  /reservations:
+    get:
+      summary: Show Reserved Tables Today
+      description: Returns a list of reserved tables for the current date.
+      operationId: getReservations
+      responses:
+        '200':
+          description: A list of reserved table numbers.
+        '500':
+          description: Internal Server Error.
+    post:
+      summary: Create Reservation
+      description: Creates a new reservation for a timestamp. Rounds up to the nearest half hour
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tischnummer:
+                  type: integer
+                zeitpunkt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Reservation created successfully.
+          content:
+            application/json:
+              example: {'reservierungsnummer': 1, 'pin': 1234, 'Zeitpunkt': '2023-11-23T12:00:00', 'tischnummer': 1}
+        '400':
+          description: Bad request. Missing or invalid parameters.
+  /reservations/{reservierungsnummer}:
+    delete:
+      summary: Cancel Reservation
+      description: Cancels a reservation by reservierungsnummer.
+      operationId: cancelReservation
+      parameters:
+        - name: reservierungsnummer
+          in: path
+          description: The reservation number to be canceled.
+          required: true
+          schema:
+            type: integer
+        - name: pin
+          in: query
+          description: The PIN associated with the reservation.
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Reservation canceled successfully.
+        '400':
+          description: Bad request. Missing or invalid parameters.
+        '404':
+          description: Reservation not found.
+        '500':
+          description: Internal Server Error.
+security:
+  []
